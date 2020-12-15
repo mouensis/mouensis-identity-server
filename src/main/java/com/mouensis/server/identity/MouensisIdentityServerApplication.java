@@ -1,8 +1,11 @@
-package com.mouensis.server.mouensisidentityserver;
+package com.mouensis.server.identity;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
+/**
+ * @author zhuyuan
+ */
 @SpringBootApplication
 public class MouensisIdentityServerApplication {
 
