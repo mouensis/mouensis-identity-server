@@ -48,6 +48,12 @@ public class LoginLogEntity implements Serializable {
     private String remoteIp;
 
     /**
+     * 登录是否成功
+     */
+    @Column(name = "is_successful")
+    private Boolean successful;
+
+    /**
      * 登录时间
      */
     @Column(nullable = false, updatable = false)

@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * @author zhuyuan
  */
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.mouensis")
 public class MouensisIdentityServerApplication {
 
 	public static void main(String[] args) {
