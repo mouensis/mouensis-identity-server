@@ -6,7 +6,7 @@ package com.mouensis.server.identity.security.captcha;
  * @author zhuyuan
  * @date 2020/12/16 21:16
  */
-public interface LoginCaptchaGenerator {
+public interface CaptchaGenerator {
 
     /**
      * 生成验证码

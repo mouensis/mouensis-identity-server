@@ -29,7 +29,12 @@ public class SwaggerConfiguration {
     private Components components() {
         return new Components()
                 .addSecuritySchemes("security-bearer",
-                        new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT"));
+                        new SecurityScheme()
+                                .description("Oauth2 认证Token")
+                                .name("123")
+                                .type(SecurityScheme.Type.HTTP)
+                                .scheme("bearer")
+                                .bearerFormat("JWT"));
     }
 
     private Info info() {

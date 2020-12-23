@@ -1,6 +1,5 @@
 package com.mouensis.server.identity.security.captcha;
 
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
@@ -29,17 +28,17 @@ public class LoginCaptchaEndpointFilter extends OncePerRequestFilter {
     public static final String CAPTCHA_CODE_CACHED_KEY_PREFIX = "CAPTCHA_";
     public static final String HEADER_CAPTCHA_TOKEN_KEY = "Captcha-Token";
     private RequestMatcher captchaEndpointMatcher;
-    private LoginCaptchaGenerator captchaGenerator;
-    private StringRedisTemplate stringRedisTemplate;
+    private CaptchaGenerator captchaGenerator;
+    private CaptchaTokenStoreService captchaTokenStoreService;
 
-    public LoginCaptchaEndpointFilter(StringRedisTemplate stringRedisTemplate) {
-        this(new DefaultLoginCaptchaGenerator(), stringRedisTemplate);
+    public LoginCaptchaEndpointFilter(CaptchaTokenStoreService captchaTokenStoreService) {
+        this(new DefaultCaptchaGenerator(), captchaTokenStoreService);
     }
 
-    public LoginCaptchaEndpointFilter(LoginCaptchaGenerator captchaGenerator, StringRedisTemplate stringRedisTemplate) {
+    public LoginCaptchaEndpointFilter(CaptchaGenerator captchaGenerator, CaptchaTokenStoreService captchaTokenStoreService) {
         this.captchaEndpointMatcher = new AntPathRequestMatcher(DEFAULT_CAPTCHA_ENDPOINT_URI, HttpMethod.GET.name());
         this.captchaGenerator = captchaGenerator;
-        this.stringRedisTemplate = stringRedisTemplate;
+        this.captchaTokenStoreService = captchaTokenStoreService;
     }
 
     @Override
@@ -53,8 +52,7 @@ public class LoginCaptchaEndpointFilter extends OncePerRequestFilter {
         LoginCaptcha loginCaptcha = this.captchaGenerator.generate();
         //验证码零时token值，丢入redis缓存，校验时反查使用
         String captchaToken = CAPTCHA_CODE_CACHED_KEY_PREFIX + UUID.randomUUID().toString().replaceAll("-", "");
-        //验证码存储进Redis，两分钟自动过期
-        stringRedisTemplate.opsForValue().set(captchaToken, loginCaptcha.getCode(), Duration.ofMinutes(2));
+        captchaTokenStoreService.store(captchaToken, loginCaptcha.getCode(), Duration.ofMinutes(2));
         //输出验证码
         sendLoginCaptchaResponse(response, captchaToken, loginCaptcha.getImage());
     }
@@ -71,5 +69,13 @@ public class LoginCaptchaEndpointFilter extends OncePerRequestFilter {
         response.setContentType("image/jpeg");
         response.getOutputStream().write(image);
         response.getOutputStream().flush();
+    }
+
+    public void setCaptchaGenerator(CaptchaGenerator captchaGenerator) {
+        this.captchaGenerator = captchaGenerator;
+    }
+
+    public void setCaptchaTokenStoreService(CaptchaTokenStoreService captchaTokenStoreService) {
+        this.captchaTokenStoreService = captchaTokenStoreService;
     }
 }

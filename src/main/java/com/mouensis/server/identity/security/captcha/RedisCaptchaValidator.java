@@ -13,11 +13,11 @@ import javax.servlet.http.HttpServletRequest;
  * @date 2020/12/16 21:07
  */
 @Slf4j
-public class LoginCaptchaRedisValidator implements LoginCaptchaValidator {
+public class RedisCaptchaValidator implements CaptchaValidator {
 
     private StringRedisTemplate stringRedisTemplate;
 
-    public LoginCaptchaRedisValidator(StringRedisTemplate stringRedisTemplate) {
+    public RedisCaptchaValidator(StringRedisTemplate stringRedisTemplate) {
         this.stringRedisTemplate = stringRedisTemplate;
     }
 

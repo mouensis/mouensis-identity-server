@@ -1,6 +1,8 @@
 package com.mouensis.server.identity.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mouensis.server.identity.security.client.DaoOAuth2AuthorizedClientService;
+import com.mouensis.server.identity.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,17 +12,25 @@ import org.springframework.security.config.annotation.authentication.builders.Au
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.annotation.web.configurers.oauth2.server.resource.OAuth2ResourceServerConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.oauth2.client.*;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
+import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.util.StringUtils;
 
-import java.util.Collection;
+import javax.servlet.http.HttpServletRequest;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Function;
+
+import static org.springframework.security.config.Customizer.withDefaults;
 
 /**
  * 安全配置
@@ -32,21 +42,14 @@ import java.util.Collections;
 @EnableWebSecurity
 public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
-    private ObjectMapper objectMapper;
-
-    @Autowired
-    public void setObjectMapper(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
-
     @Bean
     public AccessDeniedHandler apiAccessDeniedHandler() {
-        return new ApiAccessDeniedHandler(this.objectMapper);
+        return new ApiAccessDeniedHandler();
     }
 
     @Bean
-    public AuthenticationEntryPoint apiAccessDeniedEntryPoint() {
-        return new ApiAccessDeniedEntryPoint(apiAccessDeniedHandler());
+    public ApiUnauthorizedAccessEntryPoint apiUnauthorizedAccessEntryPoint() {
+        return new ApiUnauthorizedAccessEntryPoint();
     }
 
     @Bean
@@ -63,49 +66,56 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
     @Bean
     public DaoAuthenticationProvider daoAuthenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(new UserDetailsService() {
-            @Override
-            public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-                return new UserDetails() {
-                    @Override
-                    public Collection<? extends GrantedAuthority> getAuthorities() {
-                        return Collections.EMPTY_LIST;
-                    }
-
-                    @Override
-                    public String getPassword() {
-                        return "$2a$10$LUeaVf8gZYsUnk5jPhl0XeTDJcIl9DQJ.lFHwMeCenRHE2XQOUh8e";
-                    }
-
-                    @Override
-                    public String getUsername() {
-                        return "user";
-                    }
-
-                    @Override
-                    public boolean isAccountNonExpired() {
-                        return true;
-                    }
-
-                    @Override
-                    public boolean isAccountNonLocked() {
-                        return true;
-                    }
-
-                    @Override
-                    public boolean isCredentialsNonExpired() {
-                        return true;
-                    }
-
-                    @Override
-                    public boolean isEnabled() {
-                        return true;
-                    }
-                };
-            }
-        });
+        authProvider.setUserDetailsService(apiUserDetailsService());
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
+    }
+
+    @Bean
+    public UserDetailsService apiUserDetailsService() {
+        return new ApiUserDetailsServiceImpl();
+    }
+
+    @Bean
+    public OAuth2AuthorizedClientService oAuth2AuthorizedClientService() {
+        return new DaoOAuth2AuthorizedClientService();
+    }
+
+    @Bean
+    public OAuth2AuthorizedClientManager authorizedClientManager(
+            ClientRegistrationRepository clientRegistrationRepository,
+            OAuth2AuthorizedClientRepository authorizedClientRepository) {
+
+        OAuth2AuthorizedClientProvider authorizedClientProvider =
+                OAuth2AuthorizedClientProviderBuilder.builder()
+                        .password()
+                        .refreshToken()
+                        .build();
+
+        DefaultOAuth2AuthorizedClientManager authorizedClientManager =
+                new DefaultOAuth2AuthorizedClientManager(
+                        clientRegistrationRepository, authorizedClientRepository);
+        authorizedClientManager.setAuthorizedClientProvider(authorizedClientProvider);
+        authorizedClientManager.setContextAttributesMapper(contextAttributesMapper());
+
+        return authorizedClientManager;
+    }
+
+    private Function<OAuth2AuthorizeRequest, Map<String, Object>> contextAttributesMapper() {
+        return authorizeRequest -> {
+            Map<String, Object> contextAttributes = Collections.emptyMap();
+            HttpServletRequest servletRequest = authorizeRequest.getAttribute(HttpServletRequest.class.getName());
+            String username = servletRequest.getParameter(OAuth2ParameterNames.USERNAME);
+            String password = servletRequest.getParameter(OAuth2ParameterNames.PASSWORD);
+            if (StringUtils.hasText(username) && StringUtils.hasText(password)) {
+                contextAttributes = new HashMap<>();
+
+                // `PasswordOAuth2AuthorizedClientProvider` requires both attributes
+                contextAttributes.put(OAuth2AuthorizationContext.USERNAME_ATTRIBUTE_NAME, username);
+                contextAttributes.put(OAuth2AuthorizationContext.PASSWORD_ATTRIBUTE_NAME, password);
+            }
+            return contextAttributes;
+        };
     }
 
     @Override
@@ -123,14 +133,19 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
                 .authorizeRequests(customizer -> customizer
                         .antMatchers("/**")
                         .authenticated())
-                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                .and()
-                //自定义登录认证配置
-                .apply(new LoginAuthenticationServerConfigurer<>())
-                .and()
+                .sessionManagement().disable()
+                .oauth2ResourceServer(configurer -> configurer
+                        .accessDeniedHandler(apiAccessDeniedHandler())
+                        .authenticationEntryPoint(apiUnauthorizedAccessEntryPoint())
+                        .jwt())
+                .oauth2Client(withDefaults())
                 //异常处理401
                 .exceptionHandling()
                 .accessDeniedHandler(apiAccessDeniedHandler())
-                .authenticationEntryPoint(apiAccessDeniedEntryPoint());
+                .authenticationEntryPoint(apiUnauthorizedAccessEntryPoint())
+                .and()
+                //自定义登录认证配置
+                .apply(new LoginAuthenticationServerConfigurer<>())
+                .and();
     }
 }

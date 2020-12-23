@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
+import java.io.Serializable;
 import java.util.Date;
 
 /**
@@ -15,7 +16,8 @@ import java.util.Date;
 @Getter
 @Setter
 @ToString
-public class AuthenticationFailureResponse {
+public class AuthenticationFailureResponse implements Serializable {
+    private static final long serialVersionUID = -5292621286799948941L;
     /**
      * 响应时间
      */

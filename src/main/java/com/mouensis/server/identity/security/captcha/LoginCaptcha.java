@@ -18,6 +18,7 @@ import java.io.Serializable;
 @ToString
 @AllArgsConstructor
 public class LoginCaptcha implements Serializable {
+    private static final long serialVersionUID = 8227463933483861993L;
     /**
      * 验证码数字
      */

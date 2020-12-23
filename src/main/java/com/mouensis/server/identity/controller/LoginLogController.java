@@ -2,7 +2,6 @@ package com.mouensis.server.identity.controller;
 
 import com.mouensis.framework.web.domain.PageInfo;
 import com.mouensis.framework.web.domain.Pagination;
-import com.mouensis.framework.web.util.PaginationUtils;
 import com.mouensis.server.identity.dto.log.LoginLogDto;
 import com.mouensis.server.identity.dto.log.QueryLoginLogDto;
 import com.mouensis.server.identity.entity.LoginLogEntity;
@@ -45,7 +44,7 @@ public class LoginLogController {
     public ResponseEntity<PageInfo<LoginLogDto>> list(@Parameter(description = "菜单ID") QueryLoginLogDto queryLoginLogDto,
                                                       @Parameter(description = "分页信息") Pagination pagination) {
         Example<LoginLogEntity> example = queryLoginLogDto.toExample(LoginLogEntity.class);
-        Pageable pageable = PaginationUtils.toPageable(pagination, LoginLogEntity.class);
+        Pageable pageable = pagination.toPageable(LoginLogEntity.class);
         Page<LoginLogEntity> entityPage = loginLogService.listPage(example, pageable);
         PageInfo<LoginLogDto> dtoPage = PageInfo.of(entityPage, loginLogEntity -> {
             LoginLogDto loginLogDto = new LoginLogDto();

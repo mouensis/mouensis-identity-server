@@ -8,7 +8,7 @@ import javax.servlet.http.HttpServletRequest;
  * @author zhuyuan
  * @date 2020/12/16 21:06
  */
-public interface LoginCaptchaValidator {
+public interface CaptchaValidator {
 
     /**
      * 验证码校验

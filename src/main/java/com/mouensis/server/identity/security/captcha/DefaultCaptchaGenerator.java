@@ -12,7 +12,7 @@ import java.io.IOException;
  * @author zhuyuan
  * @date 2020/12/16 11:18
  */
-public class DefaultLoginCaptchaGenerator implements LoginCaptchaGenerator {
+public class DefaultCaptchaGenerator implements CaptchaGenerator {
 
     @Override
     public LoginCaptcha generate() {
@@ -70,7 +70,7 @@ public class DefaultLoginCaptchaGenerator implements LoginCaptchaGenerator {
     }
 
     public static void main(String[] args) {
-        System.out.println(new DefaultLoginCaptchaGenerator().generate());
+        System.out.println(new DefaultCaptchaGenerator().generate());
     }
 
 }
